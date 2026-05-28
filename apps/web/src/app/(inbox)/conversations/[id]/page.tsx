@@ -1,4 +1,5 @@
-import { api } from '@/lib/api';
+import { cookies } from 'next/headers';
+import { serverGet } from '@/lib/api';
 import ConversationList from '@/components/ConversationList';
 import MessageThread from '@/components/MessageThread';
 import type { ConversationSummary } from '../page';
@@ -28,12 +29,16 @@ interface Props {
 
 export default async function ConversationDetailPage({ params, searchParams }: Props) {
   const status = searchParams.status ?? 'OPEN';
+  const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value ?? '';
+  const cookieHeader = token ? `access_token=${token}` : '';
 
   const [listResult, detail] = await Promise.all([
-    api
-      .get<{ data: ConversationSummary[] }>(`/conversations?status=${status}&pageSize=50`)
-      .catch(() => ({ data: [] })),
-    api.get<ConversationDetail>(`/conversations/${params.id}`).catch(() => null),
+    serverGet<{ data: ConversationSummary[] }>(
+      `/conversations?status=${status}&pageSize=50`,
+      cookieHeader,
+    ).catch(() => ({ data: [] })),
+    serverGet<ConversationDetail>(`/conversations/${params.id}`, cookieHeader).catch(() => null),
   ]);
 
   return (

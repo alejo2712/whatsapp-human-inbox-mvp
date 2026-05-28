@@ -1,4 +1,5 @@
-import { api } from '@/lib/api';
+import { cookies } from 'next/headers';
+import { serverGet } from '@/lib/api';
 import ConversationList from '@/components/ConversationList';
 
 interface Props {
@@ -9,8 +10,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function ConversationsPage({ searchParams }: Props) {
   const status = searchParams.status ?? 'OPEN';
-  const result = await api.get<{ data: ConversationSummary[]; total: number }>(
+  const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value ?? '';
+  const cookieHeader = token ? `access_token=${token}` : '';
+
+  const result = await serverGet<{ data: ConversationSummary[]; total: number }>(
     `/conversations?status=${status}&pageSize=50`,
+    cookieHeader,
   ).catch(() => ({ data: [], total: 0 }));
 
   return (
