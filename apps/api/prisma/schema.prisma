@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  role          UserRole       @default(OPERATOR)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  conversations Conversation[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Contact {
+  id            String         @id @default(uuid())
+  phone         String         @unique
+  name          String?
+  metadata      Json           @default("{}")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  conversations Conversation[]
+
+  @@map("contacts")
+}
+
+model Conversation {
+  id            String             @id @default(uuid())
+  contactId     String             @map("contact_id")
+  contact       Contact            @relation(fields: [contactId], references: [id])
+  status        ConversationStatus @default(OPEN)
+  assignedUserId String?           @map("assigned_user_id")
+  assignedUser  User?              @relation(fields: [assignedUserId], references: [id])
+  lastMessageAt DateTime?          @map("last_message_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  messages      Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String               @id @default(uuid())
+  conversationId String               @map("conversation_id")
+  conversation   Conversation         @relation(fields: [conversationId], references: [id])
+  direction      MessageDirection
+  body           String
+  waMessageId    String?              @unique @map("wa_message_id")
+  status         MessageStatus        @default(SENT)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  statusEvents   MessageStatusEvent[]
+
+  @@map("messages")
+}
+
+model MessageStatusEvent {
+  id        String        @id @default(uuid())
+  messageId String        @map("message_id")
+  message   Message       @relation(fields: [messageId], references: [id])
+  status    MessageStatus
+  timestamp DateTime
+  raw       Json          @default("{}")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("message_status_events")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
